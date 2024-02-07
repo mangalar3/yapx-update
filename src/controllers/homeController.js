@@ -1644,7 +1644,7 @@ const kayitolpost = async (req, res, next) => {
                 service: 'gmail',
                 auth: {
                     user: 'info@yapx.com.tr',
-                    pass: 'fxhxlmidibkzhwxt'
+                    pass: 'szfubfcwrupjftdx'
                 }
             });
             const data = {
@@ -1723,7 +1723,7 @@ const kurumsalpost = async (req, res, next) => {
                     dukkanphoto: "yapxdukkan_default.png",
                     Dukkan_Thumbnails: ["yapxmarketimthumb.jpg"],
                     Dukkan_About: "Yapı Market hakkında henüz bir bilgi verilmemiştir.",
-                    User_Status: 'Pasif',
+                    User_Status: 'Aktif',
                     vergikimliknumarasi: req.body.Vergi_kimlikno,
                     vergidairesi: req.body.Vergi_dairesi,
                     Dukkan_UniqueID: 'Yapx_' + Date.now() + (Math.random() * 100),
@@ -1765,7 +1765,7 @@ const loginUser = async (req, res, next) => {
                         service: 'gmail',
                         auth: {
                             user: 'info@yapx.com.tr',
-                            pass: 'fxhxlmidibkzhwxt'
+                            pass: 'szfubfcwrupjftdx'
                         }
                     });
                     const data = {
@@ -1811,6 +1811,7 @@ const loginUser = async (req, res, next) => {
                 if (isMatch && uyeVarMi[0].User_Status == "Aktif") {
                     // Bireysel Kullanıcı Değilse Kalan Süresini Kontrol Et
                     if (uyeVarMi[0].userid == '3') {
+                        uyeVarMi[0].User_GivenTime = 180; //Süre Sınırsız
                         if (uyeVarMi[0].User_GivenTime) {
                             var dateString = uyeVarMi[0].User_GivenTime; // Örnek tarih string'i
                             var tarih = new Date(Date.parse(dateString)); // Tarih nesnesi oluşturma
@@ -1818,6 +1819,7 @@ const loginUser = async (req, res, next) => {
                             var farkMilisaniye = tarih.getTime() - simdikiZaman.getTime(); // Farkın milisaniye cinsinden hesaplanması
                             var farkGun = Math.floor(farkMilisaniye / (1000 * 60 * 60 * 24)); // Farkın gün cinsine dönüştürülmesi
                             // Kalan Süresi 0'dan Büyük İse Giriş Hakkı Ver
+                            farkGun = 180; //Süre Sınırsız
                             if (farkGun > 0) {
                                 const jwtToken = token;
                                 res.clearCookie('usertoken');
@@ -1911,7 +1913,7 @@ const sifremiunuttumPost = async (req, res, next) => {
             service: 'gmail',
             auth: {
                 user: 'info@yapx.com.tr',
-                pass: 'fxhxlmidibkzhwxt'
+                pass: 'szfubfcwrupjftdx'
             }
         });
         const data = {
