@@ -414,7 +414,9 @@ const arama = async (req, res, next) => {
                             sayfalar.push('/aramasayfa/' + 'urunara/' + req.query.arananDeger + ':' + (i + 1) + ':' + sayfano)
                         }
                         for (let i = 0; i < Product.length; i++) {
-                            list.push((Product[i].product_marka).toString())
+                            if (Product[i] && Product[i].product_marka) {
+                                list.push(safeToString(Product[i].product_marka));
+                            }
                         }
                         const filteredkategorilist2 = [...new Set(list)]
                         for (let i = 0; i < filteredkategorilist2.length; i++) {
@@ -436,7 +438,9 @@ const arama = async (req, res, next) => {
                             sayfalar.push('/aramasayfa/' + 'urunara/' + req.query.arananDeger + ':' + (i + 1) + ':' + sayfano)
                         }
                         for (let i = 0; i < Product.length; i++) {
-                            list.push((Product[i].product_marka).toString())
+                            if (Product[i] && Product[i].product_marka) {
+                                list.push(safeToString(Product[i].product_marka));
+                            }
                         }
                         const filteredkategorilist2 = [...new Set(list)]
                         for (let i = 0; i < filteredkategorilist2.length; i++) {
@@ -580,7 +584,9 @@ const aramasayfa = async (req, res, next) => {
                             sayfalar.push('/aramasayfa/' + 'urunara/' + req.params.ara.split(':')[0] + ':' + (i + 1) + ':' + sayfano)
                         }
                         for (let i = 0; i < Product.length; i++) {
-                            list.push((Product[i].product_marka).toString())
+                            if (Product[i] && Product[i].product_marka) {
+                                list.push((Product[i].product_marka).toString());
+                            }
                         }
                         const filteredkategorilist2 = [...new Set(list)]
                         res.render('user/arama', { layout: '../layouts/mainSecond_Layout', title: `Yapx | Arama`, description: ``, keywords: ``, Product, sayfaurunleri, sayfalar, filteredkategorilist2 })
@@ -857,16 +863,94 @@ const urundetaylari = async (req, res, next) => {
         const urunler = []
         const Product = await Urun.find({ product_url: params }).sort({ timestamp: -1 });
         const urunss = await Urun.find({ product_category2: Product[0].product_category2 }).limit(6);
+        
+        // Silinen dükkanları filtreleyen ve geçerli dükkanları ekleyen iyileştirilmiş döngü
         for (let i = 0; i < Product[0].product_seller.length; i++) {
-            const urun = await User.find({ dukkanurl: Product[0].product_seller[i].seller_url })
-            urun.push(Product[0].product_seller[i].price)
-            urun.push(Product[0].product_seller[i].stock)
-            if (urun == ![] || urun[i] == undefined) {
-            }
-            else {
-                urunler.push(urun)
+            try {
+                const urun = await User.find({ dukkanurl: Product[0].product_seller[i].seller_url });
+                
+                // Aktif dükkan kontrolü - silinen dükkanları atlama
+                if (urun && urun.length > 0) {
+                    // Dükkan aktif ise fiyat ve stok bilgilerini ekleyin
+                    urun.push(Product[0].product_seller[i].price);
+                    urun.push(Product[0].product_seller[i].stock);
+                    urunler.push(urun);
+                } else {
+                    // Silinen dükkanı product_seller dizisinden kaldırma işlemi
+                    console.log("Silinen dükkan tespit edildi:", Product[0].product_seller[i].seller_url);
+                }
+            } catch (error) {
+                console.log("Satıcı verisini alırken hata:", error);
             }
         }
+        
+        // Silinen dükkanları product_seller'dan arındırma
+        const yeniSaticiListesi = Product[0].product_seller.filter(satici => {
+            // Var olan dükkanları doğrula
+            return urunler.some(urun => urun[0].dukkanurl === satici.seller_url);
+        });
+        
+        // Güncellenmiş satıcı listesini kaydet
+        if (yeniSaticiListesi.length !== Product[0].product_seller.length) {
+            await Urun.findByIdAndUpdate(Product[0]._id, {
+                product_seller: yeniSaticiListesi
+            });
+            
+            // En düşük ve en yüksek fiyatları güncelle
+            if (yeniSaticiListesi.length > 0) {
+                // En düşük fiyatlı satıcıyı bul
+                let enDusukIndeks = 0;
+                let enDusukFiyat = parseFloat(yeniSaticiListesi[0].price);
+                
+                // En yüksek fiyatlı satıcıyı bul
+                let enYuksekIndeks = 0;
+                let enYuksekFiyat = parseFloat(yeniSaticiListesi[0].price);
+                
+                for (let i = 1; i < yeniSaticiListesi.length; i++) {
+                    const fiyat = parseFloat(yeniSaticiListesi[i].price);
+                    
+                    if (fiyat < enDusukFiyat) {
+                        enDusukFiyat = fiyat;
+                        enDusukIndeks = i;
+                    }
+                    
+                    if (fiyat > enYuksekFiyat) {
+                        enYuksekFiyat = fiyat;
+                        enYuksekIndeks = i;
+                    }
+                }
+                
+                // En düşük ve en yüksek fiyat bilgilerini güncelle
+                const saticiUserEnDusuk = await User.findOne({ dukkanurl: yeniSaticiListesi[enDusukIndeks].seller_url });
+                const saticiUserEnYuksek = await User.findOne({ dukkanurl: yeniSaticiListesi[enYuksekIndeks].seller_url });
+                
+                const enDusukBilgi = {
+                    value: enDusukFiyat,
+                    Seller_Name: saticiUserEnDusuk.dukkanadi,
+                    Seller_Url: saticiUserEnDusuk.dukkanurl
+                };
+                
+                const enYuksekBilgi = {
+                    value: enYuksekFiyat,
+                    Seller_Name: saticiUserEnYuksek.dukkanadi,
+                    Seller_Url: saticiUserEnYuksek.dukkanurl
+                };
+                
+                await Urun.findByIdAndUpdate(Product[0]._id, {
+                    Product_MinimumPrice: enDusukBilgi,
+                    Product_Price: enDusukFiyat,
+                    Product_MaximumPrice: enYuksekBilgi
+                });
+            } else {
+                // Satıcı kalmadıysa fiyat bilgilerini temizle
+                await Urun.findByIdAndUpdate(Product[0]._id, {
+                    Product_MinimumPrice: null,
+                    Product_MaximumPrice: null,
+                    Product_Price: null
+                });
+            }
+        }
+        
         const satansayisi = urunler.length
         const ozellik = Product[0].product_ozellik.split(/\r?\n/);
         const urunno = req.params.urunno;
@@ -2326,7 +2410,8 @@ const DukkanaEkleV2forAtTheUrunPage = async (req, res, next) => {
         var banner = await Urun.find({ product_url: kod });
         var uyeBilgileri2 = await User.find({ usertoken: token });
         var arr = uyeBilgileri2[0].dukkanurunleri;
-        const result = arr.some(obj => obj.url === banner[0].product_url.toString());
+        const result = banner && banner[0] && banner[0].product_url ? 
+            arr.some(obj => obj.url === safeToString(banner[0].product_url)) : false;
         if (!result) {
             const dukkanurl = uyeBilgileri2[0].dukkanurl;
             const numberdb = {
@@ -2733,7 +2818,7 @@ const filtre = async (req, res, next) => {
                             sayfalar.push('/filtresayfa/' + 'urunara/' + Product[i].product_marka + ':' + (i + 1) + ':' + sayfano)
                         }
                         for (let i = 0; i < markalar.length; i++) {
-                            list.push((markalar[i].product_marka).toString())
+                            list.push(safeToString(markalar[i].product_marka));
                         }
                         const filteredkategorilist2 = [...new Set(list)]
                         res.render('user/arama', { layout: '../layouts/mainSecond_Layout', title: `Yapx | Arama`, description: ``, keywords: ``, Product, sayfaurunleri, sayfalar, filteredkategorilist2, aranan })
@@ -2841,7 +2926,7 @@ const filtresayfa = async (req, res, next) => {
                             sayfalar.push('/filtresayfa/' + 'urunara/' + Product[i].product_marka + ':' + (i + 1) + ':' + sayfano)
                         }
                         for (let i = 0; i < markalar.length; i++) {
-                            list.push((markalar[i].product_marka).toString())
+                            list.push(safeToString(markalar[i].product_marka));
                         }
                         const filteredkategorilist2 = [...new Set(list)]
                         res.render('user/arama', { layout: '../layouts/mainSecond_Layout', title: `Yapx | Arama`, description: ``, keywords: ``, Product, sayfaurunleri, sayfalar, filteredkategorilist2 })
@@ -2876,7 +2961,7 @@ const filtresayfa = async (req, res, next) => {
                         for (i = 0; i < toplamsayfa; i++) {
                             sayfalar.push('/aramasayfa/' + 'urunara/' + req.body.arama + ':' + (i + 1) + ':' + sayfano)
                         }
-                        res.render('user/arama', { layout: '../layouts/mainSecond_Layout', title: `Yapx | Arama`, description: ``, keywords: ``, Product, sayfaurunleri, sayfalar })
+                        res.render('user/arama', { layout: '../layouts/logged', title: `Yapx | Arama`, description: ``, keywords: ``, Product, sayfaurunleri, sayfalar })
                     })
                 }
             })
@@ -3717,7 +3802,11 @@ const updateVisibility = async (req, res) => {
     }
 };
 
-
+// toString() çağrılarını güvenli hale getirmek için bir yardımcı fonksiyon oluşturalım
+const safeToString = (value) => {
+    if (value === undefined || value === null) return '';
+    return value.toString();
+};
 
 module.exports = {
     homeShow,

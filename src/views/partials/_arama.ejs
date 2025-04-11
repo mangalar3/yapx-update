@@ -38,10 +38,16 @@
         <div class="product-item__outer h-100">
             <div class="product-item__inner px-xl-4 p-3">
                 <div class="product-item__body pb-xl-2">
-                    <div class="mb-2"><a href="/dukkanlar/<%- Product.dukkanurl %>" class="font-size-12 text-gray-5"><%- (Product.dukkanili).split(':')[1] %></a></div>
-                    <h5 class="mb-1 product-item__title"><a href="/dukkanlar/<%- Product.dukkanurl %>" class="text-blue font-weight-bold"><%- Product.dukkanadi %></a></h5>
+                    <div class="mb-2"><a href="/dukkanlar/<%- Product.dukkanurl %>" class="font-size-12 text-gray-5">
+                    <% if (Product.dukkanili) { %>
+                        <%- (Product.dukkanili).split(':')[1] || Product.dukkanili %>
+                    <% } else { %>
+                        İl Bilgisi Yok
+                    <% } %>
+                    </a></div>
+                    <h5 class="mb-1 product-item__title"><a href="/dukkanlar/<%- Product.dukkanurl %>" class="text-blue font-weight-bold"><%- Product.dukkanadi || 'İsim Bilgisi Yok' %></a></h5>
                     <div class="mb-2">
-                        <a href="/dukkanlar/<%- Product.dukkanurl %>" class="d-block text-center"><img class="img-fluid" src="/uploads/images/<%-Product.product_category3 %>/<%- Product.dukkanphoto %>" alt="<%- Product.dukkanadi %>"></a>
+                        <a href="/dukkanlar/<%- Product.dukkanurl %>" class="d-block text-center"><img class="img-fluid" src="/uploads/images/<%-Product.product_category3 || 'default' %>/<%- Product.dukkanphoto || 'default.jpg' %>" alt="<%- Product.dukkanadi || 'Dükkan' %>"></a>
                     </div>
                 </div>
                 <div class="product-item__footer">
